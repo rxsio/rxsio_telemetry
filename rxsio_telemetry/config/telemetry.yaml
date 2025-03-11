@@ -1,0 +1,50 @@
+refresh_delay: 5
+
+outputs:
+  influx:
+    url: "<URL>"
+    token: "<TOKEN>"
+    bucket: "<BUCKET>"
+    organization: "<ORGANIZATION>"
+
+topics: 
+  - name: "/gnomes"
+    type: "std_msgs/String"
+    measurements:
+      - name: "gnomes_data"
+        fields:
+          - field: "data"
+            value: "$msg.data"
+            tags:
+              source: "noetic"
+              robot: "unknown"
+  - name: "/gnomes2"
+    fail_mode: "per_field"
+    measurements:
+      - name: "linear"
+        fields:
+          - field: "linear_x"
+            value: "$msg.linear.x"
+            tags:
+              source: "noetic"
+              robot: "unknown"
+          - field: "linear_y"
+            value: "$msg.linear.y"
+            tags:
+              source: "noetic"
+              robot: "unknown"
+  - name: "/gnomes3"
+    fail_mode: "per_field"
+    measurements: 
+      - name: "power"
+        fields: 
+          - field: "cell"
+            value: "$msg.cell_voltage.[0]"
+            tags:
+              robot: "unknown"
+          - field: "cell_voltage"
+            value: "$each"
+            tags: 
+              robot: "unknown"
+              value: "$id"
+            for_each: "$msg.cell_voltage"
