@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import datetime
 import sys
 from typing import Any, Dict, List, TypedDict, TypeVar, Union
 
@@ -7,6 +8,9 @@ import roslib.message
 import rospy
 import rostopic
 from pydantic import ValidationError
+import influxdb_client
+from influxdb_client import Point
+from influxdb_client.client.write_api import SYNCHRONOUS
 
 from rxsio_telemetry.configuration import (
     Configuration,
@@ -105,6 +109,18 @@ class Telemetry:
         rospy.loginfo("Loading configuration...")
         self.load_configuration()
         rospy.loginfo("Configuration loaded")
+
+        self.influx = influxdb_client.InfluxDBClient(
+            url=self._configuration.outputs.influx.url,
+            token=self._configuration.outputs.influx.token,
+            org=self._configuration.outputs.influx.organization
+        )
+        self.influx_write = self.influx.write_api(
+            write_options=SYNCHRONOUS,
+            error_callback=lambda x, y, z: rospy.logwarn(f"{x} {y} {z}")
+        )
+        
+        rospy.loginfo(f"Connected to influx, version: {self.influx.ping()}")
 
     def shutdown(self, reason: str) -> None:
         rospy.logerr(reason)
@@ -272,9 +288,29 @@ class Telemetry:
     def write_measurement(self, measurement: WriteMeasurement):
         name = measurement.get("measurement")
         fields = measurement.get("fields")
-        print('write measurement', name, 'with fields', fields)
+
+        records = []
+
+        records = [
+            Point.from_dict({
+                "measurement": name,
+                "tags": field.get("tags"),
+                "fields": { field.get("field"): field.get("value") }
+            })
+
+            for field in fields
+        ]
+
+        self.influx_write.write(
+            bucket=self._configuration.outputs.influx.bucket,
+            org=self._configuration.outputs.influx.organization,
+            record=records
+        )
+        self.influx_write.flush()
 
     def run(self) -> None:
+        rospy.loginfo("Running...")
+
         refresh_delay = rospy.get_param("refresh_delay", 10)
         rospy.Timer(rospy.Duration(refresh_delay), self.discover_topics)
 
