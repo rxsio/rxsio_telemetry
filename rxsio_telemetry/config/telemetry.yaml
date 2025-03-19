@@ -1,13 +1,11 @@
-refresh_delay: 5
-
-outputs:
+outputs:  
   influx:
-    url: "<URL>"
+    url: "http://localhost:8086"
     token: "<TOKEN>"
-    bucket: "<BUCKET>"
-    organization: "<ORGANIZATION>"
+    bucket: "firo2"
+    org: "RXSIO"
 
-topics: 
+topics:
   - name: "/cmd_vel"
     measurements:
       - name: "cmd_vel"

@@ -1,8 +1,5 @@
-from enum import Enum
-from typing import Dict, List, Optional
-
 from pydantic import BaseModel, Field
-
+from typing import List, Dict, Optional 
 
 class MeasurementField(BaseModel):
     field: str
@@ -15,27 +12,17 @@ class Measurement(BaseModel):
     name: str
     measurement_fields: List[MeasurementField] = Field(
         alias="fields", default=[])
-
-
-class TopicFailMode(str, Enum):
-    PerTopic = "per_topic"
-    PerMeasurement = "per_measurement"
-    PerField = "per_field"
-
-
+    
 class Topic(BaseModel):
     name: str
     type: Optional[str] = None
-    fail_mode: TopicFailMode = TopicFailMode.PerTopic
     measurements: List[Measurement] = []
-
 
 class Influx(BaseModel):
     url: str
     token: str
     bucket: str
-    organization: str
-
+    org: str
 
 class Outputs(BaseModel):
     influx: Optional[Influx] = None
