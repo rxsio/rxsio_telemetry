@@ -12,7 +12,7 @@
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
 
-  <depend>python3-influxdb-client-pip</depend>
+  <exec_depend>python3-influxdb-client-pip</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>ros2topic</exec_depend>
   <exec_depend>python3-pydantic</exec_depend>
