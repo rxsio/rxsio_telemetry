@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from ros2topic.api import get_msg_class
-from firo_measurements.configuration import Topic, Influx, validate_configuration
+from rxsio_telemetry.configuration import Topic, Influx, validate_configuration
 import yaml
 from pydantic import ValidationError
 from typing import List, Union, Dict
