@@ -1,3 +1,4 @@
+import array
 import rclpy
 from rclpy.node import Node
 from ros2topic.api import get_msg_class
@@ -39,8 +40,8 @@ class TelemetryNode(Node):
             write_options=SYNCHRONOUS,
             error_callback=lambda x, y, z: self.get_logger().warn(f"{x} {y} {z}")
         )
-        
-        
+
+
 
     def shutdown(self, reason=''):
         self.get_logger().error(f"Shutting down: {reason}")
@@ -54,7 +55,7 @@ class TelemetryNode(Node):
 
         telemetry_yaml = self.get_parameter('telemetry_yaml').get_parameter_value().string_value
         self.get_logger().info(f'Loading configuration from: {telemetry_yaml}')
-        
+
         try:
             with open(telemetry_yaml) as stream:
                 try:
@@ -66,7 +67,7 @@ class TelemetryNode(Node):
             if 'topics' not in self.data:
                 self.get_logger().error("Missing 'topics' in configuration file")
                 return
-                
+
             if 'outputs' not in self.data:
                 self.get_logger().error("Missing 'outputs' in configuration file")
                 return
@@ -78,7 +79,7 @@ class TelemetryNode(Node):
                 )
                 self.get_logger().info('Configuration loaded successfully')
 
-                
+
                 self.subscribe_topics()
 
             except ValidationError as e:
@@ -86,44 +87,44 @@ class TelemetryNode(Node):
 
         except FileNotFoundError as e:
             self.shutdown(f'Failed to load configuration: {e}')
-    
+
 
     def subscribe_topics(self):
         if not self._configuration or not self._configuration.topics:
             self.get_logger().warn('No topics defined in configuration')
             return
-        
+
         for topic in self._configuration.topics:
             self.get_logger().info(f'Registering topic: {topic.name}')
             message_type = get_msg_class(self, topic.name, include_hidden_topics=True)
             try:
-                self.create_subscription(message_type, topic.name, lambda msg: self.on_message_received(msg, topic), 1)
-                
+                self.create_subscription(message_type, topic.name, lambda msg, topic=topic: self.on_message_received(msg, topic), 1)
+
             except Exception as e:
                 self.get_logger().error(f'Failed to register topic: {e}')
-                
+
         self.get_logger().info('Registered topics with known message type')
 
 
     def on_message_received(self, message, configuration):
         if not configuration:
             rclpy.shutdown("Invalid topic callback handler")
-        
+
         else:
-            self.get_logger().info(f'Received message on topic: {configuration.name}')
+            self.get_logger().debug(f'Received message on topic: {configuration.name}')
             measurements = self.evaluate_measurement(message, configuration)
 
             for measurement in measurements:
                 self.write_measurements(measurement)
 
 
-    def evaluate_measurement(self, msg, configuration:Topic) -> List[MeasurementType]:
+    def evaluate_measurement(self, msg, configuration: Topic) -> List[MeasurementType]:
         measurements = []
         try:
-            for measurement in configuration.measurements:      
+            for measurement in configuration.measurements:
                 measurements.append({'measurement': measurement.name, 'fields': self.evaluate_fields(measurement, msg, configuration)})
 
-        except Exception as e:  
+        except Exception as e:
             self.get_logger().error(f'Failed to evaluate measurement: {e}')
         return measurements
 
@@ -145,7 +146,7 @@ class TelemetryNode(Node):
         for tag, tag_value in field.tags.items():
             new_tag_value = self.evaluate_tag(msg, tag_value)
             tags[tag] = new_tag_value
-        
+
         return {'field':field.field,
                 'value': value,
                 'tags': tags}
@@ -160,21 +161,21 @@ class TelemetryNode(Node):
 
         if not tag_value.startswith('$'):
             return tag_value
-            
-        
+
+
         reference, *parts = tag_value.split(".")
         if reference not in context:
             raise EvaluationError(f"Unknown reference to {reference}")
-        
+
         value = context.get(reference)
 
         for part in parts:
             try:
                 # for example: "$msg.motors.[0].id"
-                if isinstance(value, (list, tuple)):
+                if isinstance(value, (list, tuple, array.array)):
                     if not part.startswith("[") or not part.endswith(']'):
                         raise EvaluationError(f"Expected index [], got {part}")
-                    
+
                     index = int(part[1:-1])
                     value = value[index]
 
@@ -200,7 +201,7 @@ class TelemetryNode(Node):
             name_field = field.get('field')
             value = field.get('value')
             tags = field.get('tags')
-            self.get_logger().info(f'Received message on topic: {name}, field:{name_field}, value:{value}, tags:{tags}')
+            self.get_logger().debug(f'Received message on topic: {name}, field:{name_field}, value:{value}, tags:{tags}')
 
         records = []
 
@@ -221,7 +222,6 @@ class TelemetryNode(Node):
         )
         self.influx_write.flush()
 
-       
 
 def main(args=None):
     rclpy.init(args=args)
